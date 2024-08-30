@@ -4,6 +4,8 @@ import { Beeraf } from "../target/types/beeraf";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { randomBytes } from "crypto";
 
+const coreProgram = new PublicKey("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d")
+
 describe("beeraf", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.getProvider();
@@ -28,19 +30,16 @@ describe("beeraf", () => {
     return signature;
   };
 
-  const [house, maker, userA, userB, userC, mintRaffle] = Array.from({ length: 6 }, () =>
+  const [house, maker, userA, userB, userC, raffle, mintRaffle] = Array.from({ length: 7 }, () =>
     Keypair.generate()
   );
-
-  // Generating a big number random to create a unique seed
-  const seed = new BN(randomBytes(8));
   
   let treasuryPDA = PublicKey.findProgramAddressSync([Buffer.from("treasury"), house.publicKey.toBuffer()], program.programId)[0];
   let configPDA = PublicKey.findProgramAddressSync([Buffer.from("config"), treasuryPDA.toBuffer()], program.programId)[0];
   let raffleConfigPDA = PublicKey.findProgramAddressSync([
-    Buffer.from("raffle_config"), 
+    Buffer.from("raffle"),
     house.publicKey.toBuffer(),
-    seed.toArrayLike(Buffer, "le", 8),
+    raffle.publicKey.toBuffer()
   ], program.programId)[0];
 
   console.log('treasuryPDA', treasuryPDA);
@@ -89,17 +88,25 @@ describe("beeraf", () => {
   });
 
   it('is created the raffle', async () => {    
-    const tx = await program.methods.createRaffle(
-      seed,
+    const createRaffleArgs  = {
+      name: "Raffle Test Collection",
+      uri: "https://example.com",
       ticketPrice,
-      raffleFee,
-    ).accounts({
+      raffleFee
+    };
+
+    const tx = await program.methods.createRaffle(createRaffleArgs)
+    .accountsPartial({
       maker: maker.publicKey,
       house: house.publicKey,
       treasury: treasuryPDA,
       config: configPDA,
+      raffle: raffle.publicKey,
+      raffleConfig: raffleConfigPDA,
+      mplCoreProgram: coreProgram,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
-    .signers([maker])
+    .signers([maker, raffle])
     .rpc()
     .then(confirm)
     .then(log);
@@ -107,6 +114,4 @@ describe("beeraf", () => {
     const raffleConfigData = await program.account.raffleConfig.fetch(raffleConfigPDA);
     console.log(raffleConfigData);
   });
-
-
 });
