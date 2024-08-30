@@ -35,7 +35,12 @@ pub mod beeraf {
 
     // It will pay the amount referenced in the PDA
     // it will mint a ticket
-    // pub fn buy_ticket
+    pub fn buy_ticket(
+        ctx: Context<BuyTicket>,
+        args: BuyTicketArgs
+    ) -> Result<()> {
+        ctx.accounts.buy_ticket(args)
+    }
 
     // It will generate a valid number considering the amount of tickets
     // It will get stored in the PDA and change the status to RESOLVED

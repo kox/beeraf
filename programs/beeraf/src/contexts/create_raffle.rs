@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use mpl_core::{
-    instructions::CreateCollectionV2CpiBuilder,
-    ID as MPL_CORE_ID,
+    instructions::CreateCollectionV2CpiBuilder, types::{Attribute, Attributes, Plugin, PluginAuthority, PluginAuthorityPair}, ID as MPL_CORE_ID
 };
 use crate::{Config, RaffleConfig};
 
@@ -53,14 +52,30 @@ impl<'info> CreateRaffle<'info> {
     pub fn create_raffle(&mut self, args: CreateRaffleArgs, bumps: &CreateRaffleBumps) -> Result<()> {
         let slot = Clock::get()?.epoch + 1_512_000;
 
+        // Add an Attribute Plugin that will hold the event details
+        let mut collection_plugin: Vec<PluginAuthorityPair> = vec![];
+
+        let attribute_list: Vec<Attribute> = vec![
+            Attribute {
+                key: "Capacity".to_string(),
+                value: 1000.to_string() // args.capacity.to_string(),
+            },
+        ];
+        
+        collection_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::Attributes(Attributes { attribute_list }),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+
         // Create the Collection that will hold the tickets
         CreateCollectionV2CpiBuilder::new(&self.mpl_core_program.to_account_info())
             .collection(&self.raffle.to_account_info())
-            .update_authority(Some(&self.maker.to_account_info()))
+            .update_authority(Some(&self.raffle_config.to_account_info()))
             .payer(&self.maker.to_account_info())
             .system_program(&self.system_program.to_account_info())
             .name(args.name)
             .uri(args.uri)
+            .plugins(collection_plugin)
             .invoke()?;
 
 

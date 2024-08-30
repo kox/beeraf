@@ -30,7 +30,7 @@ describe("beeraf", () => {
     return signature;
   };
 
-  const [house, maker, userA, userB, userC, raffle, mintRaffle] = Array.from({ length: 7 }, () =>
+  const [house, maker, userA, userB, userC, raffle, mintRaffle, ticketA] = Array.from({ length: 8 }, () =>
     Keypair.generate()
   );
   
@@ -113,5 +113,9 @@ describe("beeraf", () => {
 
     const raffleConfigData = await program.account.raffleConfig.fetch(raffleConfigPDA);
     console.log(raffleConfigData);
+  });
+
+  it('should be able to buy a ticket', async () => {
+
   });
 });
