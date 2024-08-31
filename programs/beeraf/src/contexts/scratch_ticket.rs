@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use mpl_core::{accounts::{BaseAssetV1, BaseCollectionV1}, types::UpdateAuthority, ID as MPL_CORE_ID};
+use mpl_core::{accounts::{BaseAssetV1, BaseCollectionV1}, fetch_plugin, types::{Attributes, PluginType, UpdateAuthority}, ID as MPL_CORE_ID};
 
-use crate::{Config, RaffleConfig};
+use crate::{error::BeeRafError, Config, RaffleConfig};
 
 #[derive(Accounts)]
 pub struct ScratchTicket<'info> {
@@ -55,8 +55,27 @@ pub struct ScratchTicket<'info> {
 
 impl<'info> ScratchTicket<'info> {
     pub fn scratch_ticket(&mut self) -> Result<()> {
+        // Check that the maximum number of tickets has not been reached yet
+        let (_,mut collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
+            &self.raffle.to_account_info(),
+            PluginType::Attributes,
+        )?;
+
+        // Search for the Capacity attribute
+        let winner_attribute = collection_attribute_list
+        .attribute_list
+        .iter()
+        .find(|attr| attr.key == "Winner")
+        .ok_or(BeeRafError::MissingWinnerAttribute)?;
+
+        // Unwrap the Capacity attribute value
+        let winner = winner_attribute
+        .value
+        .parse::<u32>()
+        .map_err(|_| BeeRafError::NumericalOverflow)?;
 
         
+
         Ok(())
     }
     

@@ -55,7 +55,11 @@ pub mod beeraf {
     // IT will check if the ticket is the winner
     // it will send the money to the user
     // it will burn the token to recover the rent
-    // pub fn burn_ticket
+    pub fn scratch_ticket(
+        ctx: Context<ScratchTicket>
+    ) -> Result<()> {
+        ctx.accounts.scratch_ticket()
+    }
 
     // it will close the raffle and return the rent to the authority.
     // pub close_raffle

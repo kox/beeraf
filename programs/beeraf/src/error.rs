@@ -39,5 +39,8 @@ pub enum BeeRafError {
     Ed25519Accounts,
 
     #[msg("Ed25119 Data Length Error")]
-    Ed25519DataLength
+    Ed25519DataLength,
+
+    #[msg("Winner has not been yet resolved")]
+    MissingWinnerAttribute
 }
