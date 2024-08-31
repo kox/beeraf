@@ -84,7 +84,6 @@ impl<'info> CreateRaffle<'info> {
             collection: self.raffle.key(),
             slot,
             raffle_fee: args.raffle_fee,
-            tickets: 0u32,
             ticket_price: args.ticket_price,
             raffle_config_bump: bumps.raffle_config,
         });

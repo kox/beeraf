@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
 import { Beeraf } from "../target/types/beeraf";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Ed25519Program, Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction } from "@solana/web3.js";
 import { randomBytes } from "crypto";
 
 const coreProgram = new PublicKey("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d")
@@ -116,6 +116,85 @@ describe("beeraf", () => {
   });
 
   it('should be able to buy a ticket', async () => {
+    const buyTicketArgs  = {
+      name: "Raffle Test Ticket",
+      uri: "https://example.com",
+    };
 
+    const tx = await program.methods.buyTicket(buyTicketArgs)
+    .accountsPartial({
+      buyer: userA.publicKey,
+      house: house.publicKey,
+      treasury: treasuryPDA,
+      config: configPDA,
+      raffle: raffle.publicKey,
+      raffleConfig: raffleConfigPDA,
+      ticket: ticketA.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+      mplCoreProgram: coreProgram,
+    })
+    .signers([userA, ticketA])
+    .rpc()
+    .then(confirm)
+    .then(log);
+  });
+
+  it('should be able to resolve the raffle and save the winner number', async () => {
+    let raffleConfigAccount = await connection.getAccountInfo(raffleConfigPDA, "confirmed");
+    
+    const message = Buffer.concat([
+      raffleConfigAccount.data.slice(8, 40), // authority (32 bytes)
+      raffleConfigAccount.data.slice(40, 72), // collection (32 bytes)
+      raffleConfigAccount.data.slice(72, 80), // slot (8 bytes)
+      raffleConfigAccount.data.slice(80, 88), // ticket_price (8 bytes)
+      raffleConfigAccount.data.slice(88, 96), // raffle_fee (8 bytes)
+      raffleConfigAccount.data.slice(96, 97), // raffle_config_bump (1 byte)
+  ]);
+  
+    let sig_ix = Ed25519Program.createInstructionWithPrivateKey({
+      privateKey: maker.secretKey,
+      message // : raffleConfigAccount.data.subarray(8) // It will slice the data to get all data after the `discriminator`!? 
+    });
+
+    const solve_ix = await program.methods.solveRaffle(Buffer.from(sig_ix.data.buffer.slice(16+32, 16+32+64)))    
+    .accountsPartial({
+      maker: maker.publicKey,
+      house: house.publicKey,
+      treasury: treasuryPDA,
+      config: configPDA,
+      raffle: raffle.publicKey,
+      raffleConfig: raffleConfigPDA,
+      systemProgram: anchor.web3.SystemProgram.programId,
+      instructionSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      mplCoreProgram: coreProgram,
+    })
+    .signers([maker])
+    .instruction();
+
+    const tx = new Transaction().add(sig_ix).add(solve_ix);
+
+    let evenListener: number; 
+
+    try {
+
+      let betResult: number; 
+
+      evenListener = program.addEventListener('rafEvent', (event) => {
+        betResult = event.winner;
+      });
+
+      await sendAndConfirmTransaction(
+        program.provider.connection,
+        tx,
+        [maker]
+      ).then(log);
+
+      console.log(betResult);
+    }catch(err) {
+      console.log(err);
+      throw Error("It should not fail the program!");
+    } finally {
+      program.removeEventListener(evenListener);
+    }
   });
 });

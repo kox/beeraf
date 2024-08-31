@@ -44,7 +44,13 @@ pub mod beeraf {
 
     // It will generate a valid number considering the amount of tickets
     // It will get stored in the PDA and change the status to RESOLVED
-    // pub fn get_winner
+    pub fn solve_raffle(
+        ctx: Context<SolveRaffle>,
+        sig: Vec<u8>
+    ) -> Result<()> {
+        ctx.accounts.verify_ed25519_signature(&sig)?;
+        ctx.accounts.solve_raffle(&sig)
+    }
 
     // IT will check if the ticket is the winner
     // it will send the money to the user

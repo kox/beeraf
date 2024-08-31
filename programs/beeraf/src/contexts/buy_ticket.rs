@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
+
 use mpl_core::{
-    accounts::BaseCollectionV1, fetch_plugin, instructions::CreateCollectionV2CpiBuilder, types::{Attributes, PluginType}, ID as MPL_CORE_ID
+    accounts::BaseCollectionV1, fetch_plugin, instructions::{CreateCollectionV2CpiBuilder, CreateV2CpiBuilder}, types::{AppDataInitInfo, Attribute, Attributes, ExternalPluginAdapterInitInfo, ExternalPluginAdapterSchema, PermanentBurnDelegate, PermanentFreezeDelegate, PermanentTransferDelegate, Plugin, PluginAuthority, PluginAuthorityPair, PluginType}, ID as MPL_CORE_ID
 };
 
 use crate::{error::BeeRafError, Config, RaffleConfig};
@@ -53,6 +54,9 @@ pub struct BuyTicket<'info> {
 
 impl<'info> BuyTicket<'info> {
     pub fn buy_ticket(&mut self, args: BuyTicketArgs) -> Result<()> {
+        let house = self.house.key();
+        let raffle = self.raffle.key();
+
          // Check that the maximum number of tickets has not been reached yet
          let (_, collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
             &self.raffle.to_account_info(),
@@ -76,7 +80,67 @@ impl<'info> BuyTicket<'info> {
             self.raffle.num_minted < capacity,
             BeeRafError::MaximumTicketsReached
         );
-        
+
+        // Add an Attribute Plugin that will hold the ticket details
+        let mut ticket_plugin: Vec<PluginAuthorityPair> = vec![];
+
+        let attribute_list: Vec<Attribute> = vec![
+            Attribute {
+                key: "Ticket Number".to_string(),
+                value: self.raffle
+                    .num_minted
+                    .checked_add(1)
+                    .ok_or(BeeRafError::NumericalOverflow)?
+                    .to_string(),
+            },
+        ];
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::Attributes(Attributes { attribute_list }),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::PermanentFreezeDelegate(PermanentFreezeDelegate { frozen: false }),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::PermanentBurnDelegate(PermanentBurnDelegate {}),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::PermanentTransferDelegate(PermanentTransferDelegate {}),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+
+        let ticket_external_plugin: Vec<ExternalPluginAdapterInitInfo> =
+            vec![ExternalPluginAdapterInitInfo::AppData(AppDataInitInfo {
+                init_plugin_authority: Some(PluginAuthority::UpdateAuthority),
+                data_authority: PluginAuthority::Address {
+                    address: self.raffle_config.key(),
+                },
+                schema: Some(ExternalPluginAdapterSchema::Binary),
+            })];
+
+        let signer_seeds = &[
+            b"raffle".as_ref(),
+            house.as_ref(), 
+            raffle.as_ref(), 
+            &[self.raffle_config.raffle_config_bump]
+        ];
+
+        // Create the Ticket
+        CreateV2CpiBuilder::new(&self.mpl_core_program.to_account_info())
+            .asset(&self.ticket.to_account_info())
+            .collection(Some(&self.raffle.to_account_info()))
+            .payer(&self.buyer.to_account_info())
+            .authority(Some(&self.raffle_config.to_account_info()))
+            .owner(Some(&self.buyer.to_account_info()))
+            .system_program(&self.system_program.to_account_info())
+            .name(args.name)
+            .uri(args.uri)
+            .plugins(ticket_plugin)
+            .external_plugin_adapters(ticket_external_plugin)
+            .invoke_signed(&[signer_seeds])?;
+
         Ok(())
     }
 }
