@@ -50,7 +50,7 @@ pub struct CreateRaffle<'info> {
 
 impl<'info> CreateRaffle<'info> {
     pub fn create_raffle(&mut self, args: CreateRaffleArgs, bumps: &CreateRaffleBumps) -> Result<()> {
-        let slot = Clock::get()?.epoch + 1_512_000;
+        let slot = Clock::get()?.epoch + 2; //+ 1_512_000;
 
         // Add an Attribute Plugin that will hold the event details
         let mut collection_plugin: Vec<PluginAuthorityPair> = vec![];

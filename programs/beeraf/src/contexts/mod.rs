@@ -10,3 +10,5 @@ pub use buy_ticket::*;
 pub mod solve_raffle;
 pub use solve_raffle::*;
 
+pub mod scratch_ticket;
+pub use scratch_ticket::*;

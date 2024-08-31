@@ -139,6 +139,35 @@ describe("beeraf", () => {
     .then(log);
   });
 
+  it('should be able to buy many tickets', async () => {
+    const buyTicketArgs  = {
+      name: "Raffle Test Ticket",
+      uri: "https://example.com",
+    };
+
+    for(let i = 0; i < 30; i++) {
+      const ticket = Keypair.generate(); 
+
+      const tx = await program.methods.buyTicket(buyTicketArgs)
+      .accountsPartial({
+        buyer: userA.publicKey,
+        house: house.publicKey,
+        treasury: treasuryPDA,
+        config: configPDA,
+        raffle: raffle.publicKey,
+        raffleConfig: raffleConfigPDA,
+        ticket: ticket.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        mplCoreProgram: coreProgram,
+      })
+      .signers([userA, ticket])
+      .rpc()
+      .then(confirm)
+      .then(log);
+    }
+
+  });
+
   it('should be able to resolve the raffle and save the winner number', async () => {
     let raffleConfigAccount = await connection.getAccountInfo(raffleConfigPDA, "confirmed");
     
