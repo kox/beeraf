@@ -41,6 +41,7 @@ describe("beeraf", () => {
     house.publicKey.toBuffer(),
     raffle.publicKey.toBuffer()
   ], program.programId)[0];
+  let vaultPDA = PublicKey.findProgramAddressSync([Buffer.from("vault"), maker.publicKey.toBuffer()], program.programId)[0];
 
   console.log('treasuryPDA', treasuryPDA);
   console.log('configPDA', configPDA);
@@ -50,7 +51,7 @@ describe("beeraf", () => {
   const fee = new BN(1 * LAMPORTS_PER_SOL);
 
   // For each ticket, the raffle maker will get a 10%
-  const raffleFee = new BN(1000);
+  const raffleFee = new BN(100);
 
   // Each ticket will cost 1 SOL
   const ticketPrice = new BN(1 * LAMPORTS_PER_SOL);
@@ -108,6 +109,7 @@ describe("beeraf", () => {
       config: configPDA,
       raffle: raffle.publicKey,
       raffleConfig: raffleConfigPDA,
+      vault: vaultPDA,
       mplCoreProgram: coreProgram,
       systemProgram: anchor.web3.SystemProgram.programId,
     })
@@ -129,14 +131,19 @@ describe("beeraf", () => {
       uri: "https://example.com",
     };
 
+    let makerBalance = await connection.getBalance(maker.publicKey);
+    console.log('makerBalance: ', makerBalance);
+
     const tx = await program.methods.buyTicket(buyTicketArgs)
     .accountsPartial({
       buyer: userA.publicKey,
       house: house.publicKey,
+      maker: maker.publicKey,
       treasury: treasuryPDA,
       config: configPDA,
       raffle: raffle.publicKey,
       raffleConfig: raffleConfigPDA,
+      vault: vaultPDA,
       ticket: ticketA.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
       mplCoreProgram: coreProgram,
@@ -145,6 +152,12 @@ describe("beeraf", () => {
     .rpc()
     .then(confirm)
     .then(log);
+
+    makerBalance = await connection.getBalance(maker.publicKey);
+    console.log('makerBalance: ', makerBalance);
+
+    const vaultBalance = await connection.getBalance(vaultPDA);
+    console.log('vaultBalance: ', vaultBalance);
   });
 
   it('should be able to buy many tickets', async () => {
@@ -160,10 +173,12 @@ describe("beeraf", () => {
       .accountsPartial({
         buyer: userA.publicKey,
         house: house.publicKey,
+        maker: maker.publicKey,
         treasury: treasuryPDA,
         config: configPDA,
         raffle: raffle.publicKey,
         raffleConfig: raffleConfigPDA,
+        vault: vaultPDA,
         ticket: ticket.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
         mplCoreProgram: coreProgram,
@@ -173,6 +188,12 @@ describe("beeraf", () => {
       .then(confirm)
       .then(log);
     }
+
+    const makerBalance = await connection.getBalance(maker.publicKey);
+    console.log('makerBalance: ', makerBalance);
+
+    const vaultBalance = await connection.getBalance(vaultPDA);
+    console.log('vaultBalance: ', vaultBalance);
 
   });
 
@@ -186,7 +207,8 @@ describe("beeraf", () => {
       raffleConfigAccount.data.slice(80, 88), // ticket_price (8 bytes)
       raffleConfigAccount.data.slice(88, 96), // raffle_fee (8 bytes)
       raffleConfigAccount.data.slice(96, 97), // raffle_config_bump (1 byte)
-  ]);
+      raffleConfigAccount.data.slice(97, 98), // vault_bump (1 byte) 
+    ]);
   
     let sig_ix = Ed25519Program.createInstructionWithPrivateKey({
       privateKey: maker.secretKey,

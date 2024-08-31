@@ -1,10 +1,10 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program::{transfer, Transfer}};
 
 use mpl_core::{
-    accounts::BaseCollectionV1, fetch_plugin, instructions::{CreateCollectionV2CpiBuilder, CreateV2CpiBuilder}, types::{AppDataInitInfo, Attribute, Attributes, ExternalPluginAdapterInitInfo, ExternalPluginAdapterSchema, PermanentBurnDelegate, PermanentFreezeDelegate, PermanentTransferDelegate, Plugin, PluginAuthority, PluginAuthorityPair, PluginType}, ID as MPL_CORE_ID
+    accounts::BaseCollectionV1, fetch_plugin, instructions::CreateV2CpiBuilder, types::{AppDataInitInfo, Attribute, Attributes, ExternalPluginAdapterInitInfo, ExternalPluginAdapterSchema, PermanentBurnDelegate, PermanentFreezeDelegate, PermanentTransferDelegate, Plugin, PluginAuthority, PluginAuthorityPair, PluginType}, ID as MPL_CORE_ID
 };
 
-use crate::{error::BeeRafError, Config, RaffleConfig};
+use crate::{error::BeeRafError, BuyEvent, Config, RaffleConfig};
 
 #[derive(Accounts)]
 pub struct BuyTicket<'info> {
@@ -13,6 +13,9 @@ pub struct BuyTicket<'info> {
 
     /// CHECK: We don't make anything on this account
     pub house: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub maker: SystemAccount<'info>,
 
     #[account(
         seeds = [b"treasury", house.key().as_ref()],
@@ -44,6 +47,13 @@ pub struct BuyTicket<'info> {
 
     #[account(mut)]
     pub ticket: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"vault", maker.key().as_ref()],
+        bump = raffle_config.vault_bump
+    )]
+    vault: SystemAccount<'info>,
 
     #[account(address = MPL_CORE_ID)]
     /// CHECK: This is checked by the address constraint
@@ -140,6 +150,38 @@ impl<'info> BuyTicket<'info> {
             .plugins(ticket_plugin)
             .external_plugin_adapters(ticket_external_plugin)
             .invoke_signed(&[signer_seeds])?;
+
+        let maker_fee = (self.raffle_config.ticket_price * self.raffle_config.raffle_fee) / 10_000;
+                let vault_earning = self.raffle_config.ticket_price - maker_fee;
+
+        emit!(BuyEvent {
+            maker_fee,
+            vault_earning,
+        });
+        msg!("maker_fee: {}", maker_fee);
+        msg!("vault_earning: {}", vault_earning);
+
+        let cpi_program = self.system_program.to_account_info();
+
+        let cpi_accounts = Transfer {
+            from: self.buyer.to_account_info(),
+            to: self.maker.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+        transfer(cpi_ctx, maker_fee)?;
+
+        let cpi_accounts = Transfer {
+            from: self.buyer.to_account_info(),
+            to: self.vault.to_account_info(),
+        };
+
+        let cpi_program = self.system_program.to_account_info();
+
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+        transfer(cpi_ctx, vault_earning)?;
 
         Ok(())
     }

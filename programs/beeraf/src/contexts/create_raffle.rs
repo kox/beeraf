@@ -42,6 +42,12 @@ pub struct CreateRaffle<'info> {
     )]
     pub raffle_config: Account<'info, RaffleConfig>,
 
+    #[account(
+        seeds = [b"vault", maker.key().as_ref()],
+        bump
+    )]
+    vault: SystemAccount<'info>,
+
     #[account(address = MPL_CORE_ID)]
     /// CHECK: This is checked by the address constraint
     pub mpl_core_program: UncheckedAccount<'info>,
@@ -87,6 +93,7 @@ impl<'info> CreateRaffle<'info> {
             raffle_fee: args.raffle_fee,
             ticket_price: args.ticket_price,
             raffle_config_bump: bumps.raffle_config,
+            vault_bump: bumps.vault,
         });
 
         let cpi_program = self.system_program.to_account_info();
