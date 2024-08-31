@@ -17,6 +17,9 @@ pub enum BeeRafError {
     #[msg("It didn't solve any ticket")]
     NoSoldAnyTicket,
 
+    #[msg("Failed roll generation. Try again")]
+    FailedRoll,
+
     #[msg("Ed25519 Header Error")]
     Ed25519Header,
 
@@ -34,7 +37,7 @@ pub enum BeeRafError {
 
     #[msg("Ed25119 Accounts Error")]
     Ed25519Accounts,
-    
+
     #[msg("Ed25119 Data Length Error")]
     Ed25519DataLength
 }

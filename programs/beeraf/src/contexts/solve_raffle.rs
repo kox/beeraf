@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use solana_program::{sysvar::instructions::load_instruction_at_checked, ed25519_program, hash::hash};
-use mpl_core::{ accounts::BaseCollectionV1, ID as MPL_CORE_ID };
+use mpl_core::{ accounts::BaseCollectionV1, fetch_plugin, instructions::{UpdateCollectionPluginV1, UpdateCollectionPluginV1Cpi, UpdateCollectionPluginV1CpiBuilder}, types::{Attribute, Attributes, PluginType}, ID as MPL_CORE_ID };
 use anchor_instruction_sysvar::Ed25519InstructionSignatures;
 
 use crate::{error::BeeRafError, Config, RafEvent, RaffleConfig};
@@ -84,10 +84,12 @@ impl<'info> SolveRaffle<'info> {
     }
     
     pub fn solve_raffle(&mut self, sig: &[u8]) -> Result<()> {
+        let house = self.house.key();
+        let raffle = self.raffle.key();
+
         let slot = Clock::get()?.slot;
         
         require!(slot > self.raffle_config.slot, BeeRafError::StillOpen);
-
 
         require!(
             self.raffle.num_minted > 0,
@@ -108,6 +110,43 @@ impl<'info> SolveRaffle<'info> {
         emit!(RafEvent {
             winner: roll,
         });
+
+        require!(roll > 0 && roll < self.raffle.num_minted +1, BeeRafError::FailedRoll);
+
+        // Check that the maximum number of tickets has not been reached yet
+        let (_,mut collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
+            &self.raffle.to_account_info(),
+            PluginType::Attributes,
+        )?;
+
+        let winner = Attribute {
+            key: "Winner".to_string(),
+            value: roll.to_string() // args.capacity.to_string(),
+        };
+
+        collection_attribute_list.attribute_list.push(winner);
+        
+        // Prepare seeds for the PDA `raffle_config`
+        let raffle_config_seeds = &[
+            b"raffle",
+            house.as_ref(),
+            raffle.as_ref(),
+            &[self.raffle_config.raffle_config_bump],
+        ];
+
+        // Update the collection's attributes using CPI
+        UpdateCollectionPluginV1CpiBuilder::new(&self.mpl_core_program.to_account_info())
+            .collection(&self.raffle.to_account_info())
+            .authority(Some(&self.raffle_config.to_account_info()))
+            .payer(&self.maker.to_account_info())
+            .plugin(mpl_core::types::Plugin::Attributes(
+                mpl_core::types::Attributes {
+                    attribute_list: collection_attribute_list.attribute_list,
+                },
+            ))
+            .system_program(&self.system_program)
+            .invoke_signed(&[raffle_config_seeds])
+            .unwrap();
 
         Ok(())
     }
