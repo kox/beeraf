@@ -56,6 +56,8 @@ describe("beeraf", () => {
   // Each ticket will cost 1 SOL
   const ticketPrice = new BN(1 * LAMPORTS_PER_SOL);
 
+  const slotInterval = new BN(2);
+
   it("Airdrop", async () => {
     await Promise.all([house, maker, userA, userB, userC, mintRaffle].map(async (k) => {
       return await connection.requestAirdrop(
@@ -97,7 +99,8 @@ describe("beeraf", () => {
       name: "Raffle Test Collection",
       uri: "https://example.com",
       ticketPrice,
-      raffleFee
+      raffleFee,
+      slotInterval
     };
 
     const tx = await program.methods.createRaffle(createRaffleArgs)
