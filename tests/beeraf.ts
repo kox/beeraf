@@ -56,7 +56,7 @@ describe("beeraf", () => {
   // Each ticket will cost 1 SOL
   const ticketPrice = new BN(1 * LAMPORTS_PER_SOL);
 
-  const slotInterval = new BN(2);
+  const slotInterval = new BN(6);
 
   it("Airdrop", async () => {
     await Promise.all([house, maker, userA, userB, userC, mintRaffle].map(async (k) => {
@@ -200,8 +200,11 @@ describe("beeraf", () => {
   });
 
   it('should be able to resolve the raffle and save the winner number', async () => {
+    await delay(1000); // 1 seg
+    
     let raffleConfigAccount = await connection.getAccountInfo(raffleConfigPDA, "confirmed");
     
+
     const message = Buffer.concat([
       raffleConfigAccount.data.slice(8, 40), // authority (32 bytes)
       raffleConfigAccount.data.slice(40, 72), // collection (32 bytes)
@@ -291,3 +294,7 @@ describe("beeraf", () => {
     }
   });
 });
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

@@ -67,6 +67,10 @@ impl<'info> BuyTicket<'info> {
         let house = self.house.key();
         let raffle = self.raffle.key();
 
+        let current_slot = Clock::get()?.slot;
+
+        require!(current_slot <= self.raffle_config.slot, BeeRafError::TimeExpired);
+
          // Check that the maximum number of tickets has not been reached yet
          let (_, collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
             &self.raffle.to_account_info(),

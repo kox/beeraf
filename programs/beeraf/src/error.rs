@@ -46,4 +46,7 @@ pub enum BeeRafError {
     
     #[msg("Sorry but You didn't win")]
     NoWinner,
+
+    #[msg("Raffle time has expired")]
+    TimeExpired,
 }
