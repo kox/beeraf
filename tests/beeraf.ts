@@ -263,11 +263,13 @@ describe("beeraf", () => {
         .accountsPartial({
           buyer: userA.publicKey,
           house: house.publicKey,
+          maker: maker.publicKey,
           treasury: treasuryPDA,
           config: configPDA,
           raffle: raffle.publicKey,
           raffleConfig: raffleConfigPDA,
           ticket: ticketA.publicKey,
+          vault: vaultPDA,
           systemProgram: anchor.web3.SystemProgram.programId,
           mplCoreProgram: coreProgram,
         })

@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program::Transfer};
 use mpl_core::{accounts::{BaseAssetV1, BaseCollectionV1}, fetch_plugin, types::{Attributes, PluginType, UpdateAuthority}, ID as MPL_CORE_ID};
 
 use crate::{error::BeeRafError, Config, RaffleConfig, WinnerEvent};
@@ -11,6 +11,10 @@ pub struct ScratchTicket<'info> {
 
     /// CHECK: We don't make anything on this account
     pub house: UncheckedAccount<'info>,
+
+    /// CHECK: We are not doing anything on this account
+    #[account()]
+    pub maker: UncheckedAccount<'info>,
 
     #[account(
         seeds = [b"treasury", house.key().as_ref()],
@@ -47,6 +51,13 @@ pub struct ScratchTicket<'info> {
  */    )]
     pub ticket: Signer<'info/* , BaseAssetV1 */>,
     
+    #[account(
+        mut,
+        seeds = [b"vault", maker.key().as_ref()],
+        bump = raffle_config.vault_bump
+    )]
+    vault: SystemAccount<'info>,
+
     #[account(address = MPL_CORE_ID)]
     /// CHECK: This is checked by the address constraint
     pub mpl_core_program: UncheckedAccount<'info>,
@@ -94,14 +105,25 @@ impl<'info> ScratchTicket<'info> {
         .parse::<u32>()
         .map_err(|_| BeeRafError::NumericalOverflow)?;
 
-        // emit_cpi!(WinnerEvent { winner, ticket: ticket_number }  );
-
-        /* require!(ticket_number == winner, BeeRafError::NoWinner);
-        */
         msg!("ticket number: {}", ticket_number);
         msg!("winner: {}", winner);
 
         // you are the winner
+        if ticket_number == winner {
+            // We send the vault money to the winner
+            let cpi_accounts = Transfer {
+                from: self.vault.to_account_info(),
+                to: self.buyer.to_account_info(),
+            };
+    
+            let cpi_program = self.system_program.to_account_info();
+    
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    
+            /* transfer(cpi_ctx, vault_earning)?; */
+
+        }
+
 
         Ok((winner, ticket_number))
     }
