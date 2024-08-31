@@ -45,10 +45,15 @@ describe("beeraf", () => {
   console.log('treasuryPDA', treasuryPDA);
   console.log('configPDA', configPDA);
   console.log('raffleConfigPDA', raffleConfigPDA);
-
   
+  // We will have to pay 1 SOL to create a Raffle for that house
+  const fee = new BN(1 * LAMPORTS_PER_SOL);
+
+  // For each ticket, the raffle maker will get a 10%
+  const raffleFee = new BN(1000);
+
+  // Each ticket will cost 1 SOL
   const ticketPrice = new BN(1 * LAMPORTS_PER_SOL);
-  const raffleFee = new BN(100);
 
   it("Airdrop", async () => {
     await Promise.all([house, maker, userA, userB, userC, mintRaffle].map(async (k) => {
@@ -70,7 +75,7 @@ describe("beeraf", () => {
   // - userC: Person who buy ticket
   it("Is initialized!", async () => {
     // Add your test here.
-    const tx = await program.methods.initialize(new BN(150))
+    const tx = await program.methods.initialize(fee)
       .accounts({
         house: house.publicKey,
       })
@@ -113,6 +118,9 @@ describe("beeraf", () => {
 
     const raffleConfigData = await program.account.raffleConfig.fetch(raffleConfigPDA);
     console.log(raffleConfigData);
+
+    const treasuryBalance = await connection.getBalance(treasuryPDA);
+    console.log(treasuryBalance);
   });
 
   it('should be able to buy a ticket', async () => {

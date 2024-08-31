@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program::{transfer, Transfer}};
 use mpl_core::{
     instructions::CreateCollectionV2CpiBuilder, types::{Attribute, Attributes, Plugin, PluginAuthority, PluginAuthorityPair}, ID as MPL_CORE_ID
 };
@@ -13,6 +13,7 @@ pub struct CreateRaffle<'info> {
     pub house: UncheckedAccount<'info>,
 
     #[account(
+        mut,
         seeds = [b"treasury", house.key().as_ref()],
         bump = config.treasury_bump
     )]
@@ -87,6 +88,17 @@ impl<'info> CreateRaffle<'info> {
             ticket_price: args.ticket_price,
             raffle_config_bump: bumps.raffle_config,
         });
+
+        let cpi_program = self.system_program.to_account_info();
+
+        let cpi_accounts = Transfer {
+            from: self.maker.to_account_info(),
+            to: self.treasury.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+        transfer(cpi_ctx, self.config.fee)?;
         
         Ok(())
     }
