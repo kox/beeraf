@@ -30,3 +30,9 @@ impl RaffleConfig {
 pub struct RafEvent {
     pub winner: u32,
 }
+
+#[event]
+pub struct WinnerEvent {
+    pub winner: u32,
+    pub ticket: u32,
+}

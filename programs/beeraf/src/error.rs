@@ -42,5 +42,8 @@ pub enum BeeRafError {
     Ed25519DataLength,
 
     #[msg("Winner has not been yet resolved")]
-    MissingWinnerAttribute
+    MissingWinnerAttribute,
+    
+    #[msg("Sorry but You didn't win")]
+    NoWinner,
 }

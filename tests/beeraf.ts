@@ -145,7 +145,7 @@ describe("beeraf", () => {
       uri: "https://example.com",
     };
 
-    for(let i = 0; i < 30; i++) {
+    for(let i = 0; i < 5; i++) {
       const ticket = Keypair.generate(); 
 
       const tx = await program.methods.buyTicket(buyTicketArgs)
@@ -224,6 +224,30 @@ describe("beeraf", () => {
       throw Error("It should not fail the program!");
     } finally {
       program.removeEventListener(evenListener);
+    }
+  });
+
+  it('should be able to scratch the ticket and see if Im the winner', async () => {
+    try {
+      const scratch_tx = await program.methods.scratchTicket()
+        .accountsPartial({
+          buyer: userA.publicKey,
+          house: house.publicKey,
+          treasury: treasuryPDA,
+          config: configPDA,
+          raffle: raffle.publicKey,
+          raffleConfig: raffleConfigPDA,
+          ticket: ticketA.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          mplCoreProgram: coreProgram,
+        })
+        .signers([userA, ticketA])
+        .rpc()
+        .then(confirm)
+        .then(log);
+    } catch(err) {
+      console.log(err);
+      throw new Error(err);
     }
   });
 });

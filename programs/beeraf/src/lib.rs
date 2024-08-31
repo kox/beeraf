@@ -58,7 +58,13 @@ pub mod beeraf {
     pub fn scratch_ticket(
         ctx: Context<ScratchTicket>
     ) -> Result<()> {
-        ctx.accounts.scratch_ticket()
+        let (winner, ticket) = ctx.accounts.scratch_ticket()?;
+    
+        emit_cpi!(WinnerEvent {
+            winner, ticket
+        });
+
+        Ok(())
     }
 
     // it will close the raffle and return the rent to the authority.

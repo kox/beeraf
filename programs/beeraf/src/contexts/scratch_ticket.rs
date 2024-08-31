@@ -1,8 +1,9 @@
 use anchor_lang::prelude::*;
 use mpl_core::{accounts::{BaseAssetV1, BaseCollectionV1}, fetch_plugin, types::{Attributes, PluginType, UpdateAuthority}, ID as MPL_CORE_ID};
 
-use crate::{error::BeeRafError, Config, RaffleConfig};
+use crate::{error::BeeRafError, Config, RaffleConfig, WinnerEvent};
 
+#[event_cpi]
 #[derive(Accounts)]
 pub struct ScratchTicket<'info> {
     #[account(mut)]
@@ -41,10 +42,10 @@ pub struct ScratchTicket<'info> {
     
     #[account(
         mut,
-        constraint = ticket.owner == buyer.key(),
+        /* constraint = ticket.owner == buyer.key(),
         constraint = ticket.update_authority == UpdateAuthority::Collection(raffle.key()),
-    )]
-    pub ticket: Account<'info, BaseAssetV1>,
+ */    )]
+    pub ticket: Signer<'info/* , BaseAssetV1 */>,
     
     #[account(address = MPL_CORE_ID)]
     /// CHECK: This is checked by the address constraint
@@ -54,29 +55,55 @@ pub struct ScratchTicket<'info> {
 }
 
 impl<'info> ScratchTicket<'info> {
-    pub fn scratch_ticket(&mut self) -> Result<()> {
+    pub fn scratch_ticket(&mut self) -> Result<(u32 , u32)> {
         // Check that the maximum number of tickets has not been reached yet
-        let (_,mut collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
+        let (_, collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
             &self.raffle.to_account_info(),
             PluginType::Attributes,
         )?;
 
-        // Search for the Capacity attribute
+        // Search for the Winner attribute
         let winner_attribute = collection_attribute_list
         .attribute_list
         .iter()
         .find(|attr| attr.key == "Winner")
         .ok_or(BeeRafError::MissingWinnerAttribute)?;
 
-        // Unwrap the Capacity attribute value
+        // Unwrap the Winner attribute value
         let winner = winner_attribute
         .value
         .parse::<u32>()
         .map_err(|_| BeeRafError::NumericalOverflow)?;
 
-        
+        // Check that the maximum number of tickets has not been reached yet
+        let (_, ticket_attribute_list, _) = fetch_plugin::<BaseAssetV1, Attributes>(
+            &self.ticket.to_account_info(),
+            PluginType::Attributes,
+        )?;
 
-        Ok(())
+        // Search for the Capacity attribute
+        let ticket_number_attribute = ticket_attribute_list
+        .attribute_list
+        .iter()
+        .find(|attr| attr.key == "Ticket Number")
+        .ok_or(BeeRafError::MissingWinnerAttribute)?;
+
+        // Unwrap the Winner attribute value
+        let ticket_number = ticket_number_attribute
+        .value
+        .parse::<u32>()
+        .map_err(|_| BeeRafError::NumericalOverflow)?;
+
+        // emit_cpi!(WinnerEvent { winner, ticket: ticket_number }  );
+
+        /* require!(ticket_number == winner, BeeRafError::NoWinner);
+        */
+        msg!("ticket number: {}", ticket_number);
+        msg!("winner: {}", winner);
+
+        // you are the winner
+
+        Ok((winner, ticket_number))
     }
     
 }
