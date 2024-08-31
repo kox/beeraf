@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, system_program::Transfer};
+use anchor_lang::{prelude::*, system_program::{transfer, Transfer}};
 use mpl_core::{accounts::{BaseAssetV1, BaseCollectionV1}, fetch_plugin, types::{Attributes, PluginType, UpdateAuthority}, ID as MPL_CORE_ID};
 
 use crate::{error::BeeRafError, Config, RaffleConfig, WinnerEvent};
@@ -68,6 +68,8 @@ pub struct ScratchTicket<'info> {
 impl<'info> ScratchTicket<'info> {
     pub fn scratch_ticket(&mut self) -> Result<(u32 , u32)> {
         // Check that the maximum number of tickets has not been reached yet
+        let maker = self.maker.key();
+        
         let (_, collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
             &self.raffle.to_account_info(),
             PluginType::Attributes,
@@ -115,13 +117,19 @@ impl<'info> ScratchTicket<'info> {
                 from: self.vault.to_account_info(),
                 to: self.buyer.to_account_info(),
             };
-    
+
             let cpi_program = self.system_program.to_account_info();
     
-            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    
-            /* transfer(cpi_ctx, vault_earning)?; */
+            let seeds = [b"vault", &self.maker.key().to_bytes()[..], &[self.raffle_config.vault_bump]];
+            let signer_seeds = &[&seeds[..]][..];
 
+            let cpi_ctx = CpiContext::new_with_signer(
+                cpi_program, 
+                cpi_accounts,
+                signer_seeds
+            );
+            
+            transfer(cpi_ctx, self.vault.to_account_info().lamports())?;
         }
 
 

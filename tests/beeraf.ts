@@ -84,7 +84,6 @@ describe("beeraf", () => {
       .rpc()
       .then(confirm)
       .then(log);
-
     
     const treasuryBalance = await connection.getBalance(treasuryPDA);
     console.log(treasuryBalance);
@@ -259,6 +258,9 @@ describe("beeraf", () => {
 
   it('should be able to scratch the ticket and see if Im the winner', async () => {
     try {
+      let userABalance = await connection.getBalance(userA.publicKey);
+      console.log('userABalance: ', userABalance);
+
       const scratch_tx = await program.methods.scratchTicket()
         .accountsPartial({
           buyer: userA.publicKey,
@@ -277,6 +279,9 @@ describe("beeraf", () => {
         .rpc()
         .then(confirm)
         .then(log);
+
+        userABalance = await connection.getBalance(userA.publicKey);
+      console.log('userABalance: ', userABalance);
     } catch(err) {
       console.log(err);
       throw new Error(err);
